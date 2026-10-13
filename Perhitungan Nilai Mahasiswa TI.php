@@ -1,62 +1,70 @@
 <?php
-// Inisialisasi variabel untuk menampung hasil pemrosesan
 $hasilTersedia = false;
 
-// 1. Function buatan sendiri untuk menghitung akumulasi nilai akhir
-function hitungNilaiAkhir(array $nilai, float $bobotAkhir): float {
-    $bobotTugas = 0.30;
-    $bobotUts   = 0.30;
+// Konfigurasi dipusatkan di satu tempat
+const BOBOT = ["Tugas" => 0.30, "UTS" => 0.30, "UAS" => 0.40];
+const TOTAL_PERTEMUAN = 16;
+const MIN_KEHADIRAN   = 75;   // persen
 
-    $total = ($nilai["Tugas"] * $bobotTugas) + 
-             ($nilai["UTS"] * $bobotUts) + 
-             ($nilai["UAS"] * $bobotAkhir);
+// Validasi: total bobot harus 100%
+if (abs(array_sum(BOBOT) - 1.0) > 0.0001) {
+    die("Konfigurasi bobot tidak valid: totalnya harus 100%.");
+}
 
+// Function menghitung nilai akhir berdasarkan array bobot
+function hitungNilaiAkhir(array $nilai, array $bobot): float {
+    $total = 0;
+    foreach ($bobot as $komponen => $b) {
+        $total += $nilai[$komponen] * $b;
+    }
     return round($total, 2);
 }
 
-// Memproses input saat form dikirimkan
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $namaMahasiswa   = (string) trim($_POST["nama"]);      // Tipe data: String
-    $jumlahKehadiran = (int) $_POST["kehadiran"];          // Tipe data: Integer
-    $bobotUas        = 0.40;                              // Tipe data: Float
-    $statusAktif     = isset($_POST["status_aktif"]);      // Tipe data: Boolean
-    $komponenNilai   = [                                  // Tipe data: Array
+    $namaMahasiswa   = trim($_POST["nama"]);
+    $jumlahKehadiran = (int) $_POST["kehadiran"];
+    $statusAktif     = isset($_POST["status_aktif"]);
+    $komponenNilai   = [
         "Tugas" => (float) $_POST["nilai_tugas"],
         "UTS"   => (float) $_POST["nilai_uts"],
         "UAS"   => (float) $_POST["nilai_uas"]
     ];
 
-    $nilaiAkhir = hitungNilaiAkhir($komponenNilai, $bobotUas);
+    $nilaiAkhir  = hitungNilaiAkhir($komponenNilai, BOBOT);
+    $persenHadir = round($jumlahKehadiran / TOTAL_PERTEMUAN * 100, 1);
 
-    if ($nilaiAkhir >= 85) {
-        $grade = "A";
-        $statusLulus = true;
-    } elseif ($nilaiAkhir >= 75) {
-        $grade = "B";
-        $statusLulus = true;
-    } elseif ($nilaiAkhir >= 65) {
-        $grade = "C";
-        $statusLulus = true;
-    } elseif ($nilaiAkhir >= 50) {
-        $grade = "D";
-        $statusLulus = false;
-    } else {
-        $grade = "E";
-        $statusLulus = false;
+    if     ($nilaiAkhir >= 85) { $grade = "A"; }
+    elseif ($nilaiAkhir >= 75) { $grade = "B"; }
+    elseif ($nilaiAkhir >= 65) { $grade = "C"; }
+    elseif ($nilaiAkhir >= 50) { $grade = "D"; }
+    else                       { $grade = "E"; }
+
+    // Kelulusan ditentukan oleh nilai, kehadiran, dan status aktif
+    $alasan = [];
+    if (in_array($grade, ["D", "E"])) {
+        $alasan[] = "Nilai akhir di bawah 65 (grade $grade)";
     }
+    if ($persenHadir < MIN_KEHADIRAN) {
+        $alasan[] = "Kehadiran $persenHadir% (minimal " . MIN_KEHADIRAN . "%)";
+    }
+    if (!$statusAktif) {
+        $alasan[] = "Mahasiswa berstatus tidak aktif";
+    }
+    $statusLulus = empty($alasan);
 
     $hasilTersedia = true;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <title>Sistem Input & Perhitungan Nilai Mahasiswa</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 150px; background-color: #fdffc6; color: #310000; }
-        .container { display: flex; flex-wrap: wrap; gap: 24px; max-width: 950px; }
-        .card { background: #ffb6d0a7; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(10, 9, 9, 0.69); flex: 1; min-width: 320px; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 60px 20px; background-color: #fdffc6; color: #310000; }
+        .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; max-width: 980px; margin: 0 auto; }
+        .card { background: #ffb6d0a7; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(10, 9, 9, 0.69); flex: 0 1 460px; min-width: 320px; box-sizing: border-box; }
         h2 { margin-top: 0; color: #075b40; font-size: 25px; }
         .form-group { margin-bottom: 14px; }
         label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; }
@@ -116,7 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <div class="card">
         <h2>Hasil Penilaian Mahasiswa</h2>
         <p><strong>Nama:</strong> <?= htmlspecialchars($namaMahasiswa); ?></p>
-        <p><strong>Kehadiran:</strong> <?= $jumlahKehadiran; ?> Pertemuan</p>
+        <p><strong>Kehadiran:</strong> <?= $jumlahKehadiran; ?> dari <?= TOTAL_PERTEMUAN; ?> pertemuan (<?= $persenHadir; ?>%)</p>
         <p><strong>Status Mahasiswa:</strong> <?= $statusAktif ? "Aktif" : "Tidak Aktif"; ?></p>
 
         <table>
@@ -145,8 +153,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <?= $statusLulus ? "LULUS" : "TIDAK LULUS"; ?>
             </span>
         </p>
-    </div>
+
+        <?php if (!$statusLulus): ?>
+        <p><strong>Alasan:</strong></p>
+        <ul>
+            <?php foreach ($alasan as $a): ?>
+                <li><?= htmlspecialchars($a); ?></li>
+            <?php endforeach; ?>
+        </ul>
     <?php endif; ?>
+</div>
+<?php endif; ?>
 </div>
 
 </body>

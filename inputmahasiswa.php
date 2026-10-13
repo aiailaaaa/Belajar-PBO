@@ -105,7 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <input type="text" name="fakultas" required>
 
         <label>Program Studi</label>
-        <select name="Program Studi" required>
+        <select name="Program_Studi" required>
             <option value="">-- Pilih Program Studi --</option>
             <option value="Teknik Informatika">Teknik Informatika</option>
             <option value="Teknik Sipil">Teknik Sipil</option>
@@ -171,6 +171,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <p><strong>Hobi:</strong>
                 <?= htmlspecialchars($hobi) ?>
+            </p>
+
+            <p><strong>Kesibukan:</strong>
+                <?= htmlspecialchars($kesibukan) ?>
             </p>
 
         </div>
