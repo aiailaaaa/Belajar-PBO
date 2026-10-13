@@ -35,7 +35,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-family: Arial, sans-serif;
             background-color: #FAAFBA;
             margin: 0;
-            padding: 30px;
+            padding: 50px;
         }
 
         .container {
